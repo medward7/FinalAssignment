@@ -1,0 +1,85 @@
+---
+title: "TestApp"
+author: "Melissa Edwards"
+date: "2026-05-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Set working directory
+setwd("/Users/melissaberneroedwards/Documents/GitFiles/Final")
+
+
+# Load Libraries
+library(shiny)
+library(tidyverse)
+library(haven)
+library(gtsummary)
+library (htmltools)
+library(knitr)
+library(readr)
+library(dplyr)
+library(sparklyr)
+library(here)
+library(texreg)
+library(plotly)
+library(stargazer)
+library(kableExtra)
+library(DT)
+```
+
+```{r data}
+
+# Load data
+age_decade_table <- read.csv("../data/age_decade_table.csv")
+scare_table_long <- read.csv("../data/scare_table_long.csv")
+scare_table <- read.csv("../data/scare_table.csv")
+suffer_table_long <- read.csv("../data/suffer_table_long.csv")
+ZA7500_subset <- read.csv("../data/ZA7500_subset.csv")
+
+```
+
+
+```{r ui} 
+ui <- fluidPage(
+        sidebarLayout(
+                sidebarPanel(
+                        selectInput("controller", "Show",
+                                    choices = c("Overview", "Exploration", "Regression")),
+                        selectInput("input1", "Country",
+                                        choices = unique(ZA7500_subset$c_abrv)),
+                        selectInput("input2", "Outcome",
+                                    choices = c("Mothers Working", "Jobs")),
+                        selectInput("input3", "Controls",
+                                    choices = c("Sex", "Education")),
+                        selectInput("input4", "Age Polynomial",
+                                    choices = c(1:5))
+                ),
+                mainPanel(
+                        tabsetPanel(
+                                id = "switcher",
+                                tabPanel("Main",
+                                         h1("Main"),
+                                         p("This is the home tab of this app. The goal of this app is to allow users to analyze 2017 EVS Data, specially focused on beleifs in the EU on the impact on mothers working on their children and hiring preferences by employers when jobs are scarce (citizens vs immigrants)."),
+                                         p("To navigate this app, first select which tab you'd like to explore and then change the inputs to see the resultant data. The inputs are:"),
+                                         p("Country: This will filter all outputs to the country of your choide"),
+                                         p("Outcome: There are two outcomes. 1: If the child siffers when the mother works and if a job should be given to a national in times of economic trouble"),
+                                         p("Controls: You can choose between sex and education"),
+                                         p("Age polynomial: numeric input between 1 and 5")),
+                                tabPanel("Exploration"),
+                                tabPanel("Regression")
+))))
+
+
+server <- function(input, output, session) {
+        
+}
+
+shinyApp(ui, server)
+```
+
+
+```{r server}
+

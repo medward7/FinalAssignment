@@ -28,18 +28,13 @@ library(plotly)
 library(stargazer)
 library(kableExtra)
 library(DT)
+library(ggplot2)
 ```
 
 ```{r data}
 
 # Load data
 ZA7500_subset <- read.csv("../data/ZA7500_subset.csv")
-
-# Load models
-suffer_model <- readRDS("/Users/melissaberneroedwards/Documents/GitFiles/Assignment2/data_output/suffer_model.rds")
-scare_model <- readRDS("/Users/melissaberneroedwards/Documents/GitFiles/Assignment2/data_output/scare_model.rds")
-
-
 ```
 
 
@@ -50,13 +45,12 @@ ui <- fluidPage(
                         selectInput("controller", "Show",
                                     choices = c("Overview", "Exploration", "Regression")),
                         selectInput("country", "Country",
-                                        choices = c("Overall", unique(ZA7500_subset$c_abrv))),
-                        selectInput("outcome", "Outcome",
-                                    choices = c("Mothers Working", "Jobs")),
-                        selectInput("controls", "Controls",
-                                    choices = c("Sex", "Education", "Age")),
-                        selectInput("age", "Age Polynomial",
-                                    choices = c(1:5)),
+                                    choices = c("Overall", unique(ZA7500_subset$c_abrv))),
+selectInput("outcome", "Select Outcome:", choices = c("Jobs to Nationals", "Mothers Working"), selected = "Jobs to Nationals"),
+
+selectInput("control", "Additional Predictor:", choices = c("Sex", "Education"), selected = "Sex"),
+                             sliderInput("age_poly", "Polynomial Degree for Age:",
+                  min = 1, max = 5, value = 1, step = 1),
                         actionButton("submit", "Submit")
                 ),
                 mainPanel(
@@ -74,12 +68,9 @@ ui <- fluidPage(
                                          h1("Exploration"),
                                          h2("Analysis of Outcome and Controls"),
                                          p("On this tab, there is analysis of the two outcomes (if a child suffers if the mother works and if jobs should be given to nationals) and the controls (age, education, and sex). This analysis will be done via graphs. Graphs will update based on the selections made."),
-                                         h3("Outcome 1: Jobs to Nationals"),
-                                         plotlyOutput("stacked_scare_plot"),
-                                         p(" "),
-                                         p(" "),
-                                         h3("Outcome 2: Children Suffering in Mothers Work"),
-                                         plotlyOutput("suffer_plot_stacked"),
+                                         h3("Outcome Plot"),
+                                         dataTableOutput("plot_table"),
+                                         plotlyOutput("selected_plot"),
                                          p(" "),
                                          p(" "),
                                          h3("Control 1: Age"),
@@ -93,83 +84,76 @@ ui <- fluidPage(
                                          h3("Control 3: Education"),
                                          plotlyOutput("education_plot")
                                          ),
-                                tabPanel("Regression")
+                                tabPanel("Regression",
+                                         h1("Regressional Analysis"),
+                                         p("On this tab, you can explore how different controls (sex and education) and how many age polynomials you select will impact the regressional coefficients and scatter plot. Age will automatically be included, but the nubmer of age polynomials can be changed. The default is 1 and the max is 5. Which regression you are viewing is controlled by the Outcome selection and can be changed."),
+                                         tableOutput("model_table"),
+                                         )
 ))))
 
 
 server <- function(input, output, session) {
-        
-        # create reactive to plot outcome - jobs
-        x1 <- eventReactive(input$submit, {
-                ZA7500_subset %>%
-                        filter(c_abrv == input$country) %>%
-                        group_by(age_decade) %>%
-                        summarise(Agree_Strongly = sum(scare_factor == "Agree Strongly", na.rm = TRUE),
-                                  Agree = sum(scare_factor == "Agree", na.rm = TRUE),
-                                  Neither = sum(scare_factor == "Neither Agree nor Disagree", na.rm = TRUE),
-                                  Disagree = sum(scare_factor == "Disagree", na.rm = TRUE),
-                                  Disagree_Strongly = sum(scare_factor == "Disagree Strongly", na.rm = TRUE)) %>%
-                        pivot_longer(cols = -age_decade, names_to = "variable", values_to = "values")
-        })
-        
-        
-        
-        # plot for outcome - jobs
-        output$stacked_scare_plot <- renderPlotly({
-                stacked_scare_plot <- ggplot(x1(), aes(x = age_decade, y = values, fill = variable)) +
-                        geom_bar(stat = "identity", position = "fill") +
-                        labs(x = "Age Decade", y = "Percent of Responses", fill = "Level of Agreement") +
-                        ggtitle("Beliefs about Prioritizing Citizens over Immigrants") +
-                        theme(
-                                panel.grid.major = element_blank(), 
-                                panel.grid.minor = element_blank(),
-                                panel.background = element_blank(), 
-                                axis.line = element_line(color = "grey"),   
-                                text=element_text(color="grey"),
-                                axis.text.x = element_text(angle = 45, hjust = 1),
-                                plot.title = element_text(hjust = 0.5)) + 
-                        ylab("Percent of Responses") +
-                        scale_fill_discrete(
-                                labels = c(
-                                        "Agree Strongly",
-                                        "Agree",
-                                        "Neither Agree nor Disagree",
-                                        "Disagree",
-                                        "Disagree Strongly"
-                                ))
-        })
-        
-        # reactive for outcome - children
-        x2 <- eventReactive(input$submit, {
-                ZA7500_subset  %>%
-        filter(c_abrv == input$country) %>%
-        drop_na(age_decade) %>% 
+  # Reactive for filtering and processing data (triggered by submit button)
+  plot_data <- eventReactive(input$submit, {
+    req(input$country, input$outcome) 
+
+
+    # Filter data by country
+    filtered_data <- ZA7500_subset %>%
+      filter(c_abrv == input$country) %>%
+      drop_na(age_decade)
+
+    # Process data based on plot type
+    if (input$outcome == "Jobs to Nationals") {
+        print("Processing Jobs to Nationals")
+      filtered_data %>%
         group_by(age_decade) %>%
-        summarise(Agree_Strongly = sum(scare_factor == "Agree Strongly", na.rm = TRUE),
-                  Agree = sum(scare_factor == "Agree", na.rm = TRUE),
-                  Disagree = sum(scare_factor == "Disagree", na.rm = TRUE),
-                  Disagree_Strongly = sum(scare_factor == "Disagree Strongly", na.rm = TRUE)) %>%
+        summarise(
+          Agree_Strongly = sum(scare_factor == "Agree Strongly", na.rm = TRUE),
+          Agree = sum(scare_factor == "Agree", na.rm = TRUE),
+          Neither = sum(scare_factor == "Neither Agree nor Disagree", na.rm = TRUE),
+          Disagree = sum(scare_factor == "Disagree", na.rm = TRUE),
+          Disagree_Strongly = sum(scare_factor == "Disagree Strongly", na.rm = TRUE)
+        ) %>%
         pivot_longer(cols = -age_decade, names_to = "variable", values_to = "values")
-        })
 
-        # plot for outcome - children
-output$suffer_plot_stacked <- renderPlotly({
-        suffer_plot_stacked <- ggplot(x2(), aes(x = age_decade, y = values, fill = variable)) +
-                geom_bar(stat = "identity", position = "fill") +
-                labs(x = "Age Decade", y = "Percent of Responses", fill = "Level of Agreement") +
-                ggtitle("Beliefs on Working Mothers Impacting Children") +
-                theme(
-                        panel.grid.major = element_blank(), 
-                        panel.grid.minor = element_blank(),
-                        panel.background = element_blank(), 
-                        axis.line = element_line(color = "grey"),   
-                        text=element_text(color="grey"),
-                        axis.text.x = element_text(angle = 45, hjust = 1),
-                        plot.title = element_text(hjust = 0.5)) + 
-                ylab("Percent of Responses") + 
-                scale_fill_discrete(labels = c("Agree Strongly", "Agree","Disagree", "Disagree Strongly"))
+    } else if (input$outcome == "Mothers Working") {
+            print("Processing Mothers Working")
+      filtered_data %>%
+        group_by(age_decade) %>%
+        summarise(
+          Agree_Strongly = sum(suffer_factor == "Agree Strongly", na.rm = TRUE),
+          Agree = sum(suffer_factor == "Agree", na.rm = TRUE),
+          Disagree = sum(suffer_factor == "Disagree", na.rm = TRUE),
+          Disagree_Strongly = sum(suffer_factor == "Disagree Strongly", na.rm = TRUE)
+        ) %>%
+        pivot_longer(cols = -age_decade, names_to = "variable", values_to = "values")
+    }
+  })
+
+  # Render the selected plot
+output$selected_plot <- renderPlotly({
+  req(input$outcome, plot_data())  # Ensure inputs and data exist
+
+  p <- ggplot(plot_data(), aes(x = age_decade, y = values, fill = variable)) +
+    geom_bar(stat = "identity", position = "fill") +
+    labs(x = "Age Decade", y = "Percent of Responses", fill = "Level of Agreement") +
+    ggtitle(input$outcome) +
+    theme(      panel.grid.major = element_blank(),
+                panel.grid.minor = element_blank(),
+                panel.background = element_blank(),
+                axis.line = element_line(color = "grey"),
+                text = element_text(color = "grey"),
+                axis.text.x = element_text(angle = 45, hjust = 1),
+                plot.title = element_text(hjust = 0.5)) +
+    scale_fill_discrete(
+      labels = if (input$outcome == "Jobs to Nationals") {
+        c("Agree Strongly", "Agree", "Neither Agree nor Disagree", "Disagree", "Disagree Strongly")
+      } else {
+        c("Agree Strongly", "Agree", "Disagree", "Disagree Strongly")
+      }
+    )
 })
-
         # reactive for age graph
         x3 <- eventReactive(input$submit, { 
                 ZA7500_subset %>%
@@ -240,11 +224,25 @@ output$suffer_plot_stacked <- renderPlotly({
                                 axis.text.x = element_text(angle = 45, hjust = 1),
                                 plot.title = element_text(hjust = 0.5))
 })
+
+  # Reactive for regression model
+  regression_model <- eventReactive(input$submit, {
+          
+    # Ensure outcome columns are factors
+    ZA7500_subset_model<- ZA7500_subset %>%
+      mutate(scare_factor = factor(scare_factor),
+             suffer_factor = factor(suffer_factor))
+    
+    output$model_table <- renderDataTable({
+                        ZA7500_subset_model()})
+})
+ 
 }
+
         
 shinyApp(ui, server)
 ```
 
 
-```{r server}
+
 

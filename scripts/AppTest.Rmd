@@ -33,11 +33,12 @@ library(DT)
 ```{r data}
 
 # Load data
-age_decade_table <- read.csv("../data/age_decade_table.csv")
-scare_table_long <- read.csv("../data/scare_table_long.csv")
-scare_table <- read.csv("../data/scare_table.csv")
-suffer_table_long <- read.csv("../data/suffer_table_long.csv")
 ZA7500_subset <- read.csv("../data/ZA7500_subset.csv")
+
+# Load models
+suffer_model <- readRDS("/Users/melissaberneroedwards/Documents/GitFiles/Assignment2/data_output/suffer_model.rds")
+scare_model <- readRDS("/Users/melissaberneroedwards/Documents/GitFiles/Assignment2/data_output/scare_model.rds")
+
 
 ```
 
@@ -55,7 +56,8 @@ ui <- fluidPage(
                         selectInput("controls", "Controls",
                                     choices = c("Sex", "Education", "Age")),
                         selectInput("age", "Age Polynomial",
-                                    choices = c(1:5))
+                                    choices = c(1:5)),
+                        actionButton("submit", "Submit")
                 ),
                 mainPanel(
                         tabsetPanel(
@@ -98,7 +100,7 @@ ui <- fluidPage(
 server <- function(input, output, session) {
         
         # create reactive to plot outcome - jobs
-        x1 <- reactive({
+        x1 <- eventReactive(input$submit, {
                 ZA7500_subset %>%
                         filter(c_abrv == input$country) %>%
                         group_by(age_decade) %>%
@@ -109,6 +111,8 @@ server <- function(input, output, session) {
                                   Disagree_Strongly = sum(scare_factor == "Disagree Strongly", na.rm = TRUE)) %>%
                         pivot_longer(cols = -age_decade, names_to = "variable", values_to = "values")
         })
+        
+        
         
         # plot for outcome - jobs
         output$stacked_scare_plot <- renderPlotly({
@@ -136,7 +140,7 @@ server <- function(input, output, session) {
         })
         
         # reactive for outcome - children
-        x2 <- reactive({
+        x2 <- eventReactive(input$submit, {
                 ZA7500_subset  %>%
         filter(c_abrv == input$country) %>%
         drop_na(age_decade) %>% 
@@ -167,7 +171,7 @@ output$suffer_plot_stacked <- renderPlotly({
 })
 
         # reactive for age graph
-        x3 <- reactive({ 
+        x3 <- eventReactive(input$submit, { 
                 ZA7500_subset %>%
         filter(c_abrv == input$country) %>%
         group_by(age_decade) %>%
@@ -190,7 +194,7 @@ output$suffer_plot_stacked <- renderPlotly({
 })
         
         # reactive for sex graph
-        x4 <- reactive({ 
+        x4 <- eventReactive(input$submit, { 
                 ZA7500_subset %>%
         filter(c_abrv == input$country) %>%
         group_by(gender_factor) %>%
@@ -214,7 +218,7 @@ output$suffer_plot_stacked <- renderPlotly({
 })
         
         # reactive for education graph
-        x5 <- reactive({ 
+        x5 <- eventReactive(input$submit, { 
                 ZA7500_subset %>%
         filter(c_abrv == input$country) %>%
         group_by(education_factor) %>%

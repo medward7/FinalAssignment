@@ -1,5 +1,5 @@
 # FinalAssignment
-This is the work for the final assignment
+This is the work for the final assignment. Not my best work given the time frame, so I apologize. 
 
 ## Project Description
 The goal of this project is to analyze 2017 EVS Data, specially focused on beliefs in the EU on the impact on mothers working on their children and hiring preferences by employers when jobs are scarce (citizens vs immigrants). 

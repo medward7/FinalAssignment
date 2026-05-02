@@ -85,10 +85,10 @@ selectInput("control", "Additional Predictor:", choices = c("Sex", "Education"),
                                          plotlyOutput("education_plot")
                                          ),
                                 tabPanel("Regression",
-                                         h1("Regressional Analysis"),
-                                         p("On this tab, you can explore how different controls (sex and education) and how many age polynomials you select will impact the regressional coefficients and scatter plot. Age will automatically be included, but the nubmer of age polynomials can be changed. The default is 1 and the max is 5. Which regression you are viewing is controlled by the Outcome selection and can be changed."),
-                                         tableOutput("model_table"),
-                                         )
+         h1("Regression Analysis"),
+         p("On this tab, you can explore how different controls (sex and education) and age polynomials impact the regression coefficients."),
+         tableOutput("model_table")
+)
 ))))
 
 
@@ -225,21 +225,53 @@ output$selected_plot <- renderPlotly({
                                 plot.title = element_text(hjust = 0.5))
 })
 
-  # Reactive for regression model
-  regression_model <- eventReactive(input$submit, {
-          
-    # Ensure outcome columns are factors
-    ZA7500_subset_model<- ZA7500_subset %>%
-      mutate(scare_factor = factor(scare_factor),
-             suffer_factor = factor(suffer_factor))
-    
-    output$model_table <- renderDataTable({
-                        ZA7500_subset_model()})
+        # Reactive for regression model
+regression_model <- eventReactive(input$submit, {
+  req(input$outcome, input$control, input$age_poly)
+
+  # Select outcome column name (numeric)
+  outcome_col <- if (input$outcome == "Jobs to Nationals") {
+    "v80"
+  } else {
+    "v72"
+  }
+
+  # Select control column name
+  control_col <- if (input$control == "Sex") {
+    "v225"
+  } else {
+    "v243_edulvlb"
+  }
+
+  # Drop rows with NA in age, outcome, or control
+  model_data <- drop_na(ZA7500_subset, age, !!sym(outcome_col), !!sym(control_col))
+
+  # Construct formula
+  formula <- as.formula(
+    paste(outcome_col, "~ age + poly(age, degree = ", input$age_poly, ") + ", control_col, sep = "")
+  )
+
+  # Fit linear regression
+  model <- tryCatch({
+    lm(formula, data = model_data)
+  }, error = function(e) {
+    print(paste("Model error:", e$message))
+    NULL
+  })
+
+  return(model)
 })
- 
+
+# Output the model table
+output$model_table <- renderTable({
+  model <- regression_model()
+  req(model)
+  broom::tidy(model, conf.int = TRUE)
+}, align = 'l', striped = TRUE, bordered = TRUE)
+
 }
 
-        
+
 shinyApp(ui, server)
 ```
 

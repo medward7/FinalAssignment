@@ -1,0 +1,120 @@
+---
+title: "HTML_Report"
+author: "Melissa Edwards"
+date: "`r Sys.Date()`"
+output: html_document
+params:
+  show_code: FALSE
+  outcome: "Jobs to Nationals"  # Default value
+  control: "Sex"               # Default value
+  age_poly: 1                  # Default value
+  country: "Overall"           # Default value
+  plot_data: NULL              
+  x3: NULL                     
+  x4: NULL                     
+  x5: NULL                    
+  regression_model: NULL      
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(knitr)
+library(ggplot2)
+library(broom)
+library(DT)
+library(tidyverse)
+library(haven)
+library(gtsummary)
+library(knitr)
+```
+
+
+# Exploration
+
+This section covers exploration of the data used in the regression analysis section below. Outputs entered in the app include country and outcome.
+
+## Outcome Plot
+Outcome: `r params$outcome`
+
+Country: `r params$country`
+
+```{r exploration}
+req(params$plot_data)
+ggplot(params$plot_data, aes(x = age_decade, y = values, fill = variable)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(x = "Age Decade", y = "Percent of Responses", fill = "Level of Agreement",
+       title = params$outcome) +
+  theme_minimal()
+
+```
+
+## Age Distribution:
+```{r}
+req(params$x3)
+ggplot(params$x3, aes(x = age_decade, y = count)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Age Decade", y = "Count", title = "Count of Respondent Age by Decade") +
+  theme_minimal()
+```
+
+
+## Sex Distribution:
+```{r}
+req(params$x4)
+ggplot(params$x4, aes(x = gender_factor, y = count)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Gender", y = "Count", title = "Count of Respondent Gender") +
+  theme_minimal()
+```
+
+
+## Education Distribution:
+```{r}
+req(params$x5)
+ggplot(params$x5, aes(x = education_factor, y = count)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Level of Education", y = "Count", title = "Count of Respondent Level of Education") +
+  theme_minimal()
+```
+
+
+# Regression
+
+Outcome: `r params$outcome`
+
+Age Polynomial Degree: `r params$age_poly`
+
+Control Variable: `r params$control`
+
+
+## Regression Summary
+```{r}
+req(params$regression_model)
+summary(params$regression_model)
+```
+
+
+## Regression Coefficients Table
+```{r}
+req(params$regression_model)
+tidy_model <- broom::tidy(params$regression_model, conf.int = TRUE)
+knitr::kable(tidy_model, digits = 3, caption = "Regression Coefficients")
+```
+
+
+Residuals vs. Fitted Plot
+```{r}
+req(params$regression_model)
+model_data <- params$regression_model$model
+model_data$residuals <- resid(params$regression_model)
+model_data$fitted <- fitted(params$regression_model)
+
+ggplot(model_data, aes(x = fitted, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Fitted Values", y = "Residuals", title = "Residuals vs Fitted Values") +
+  theme_minimal()
+
+```
+

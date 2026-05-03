@@ -10,16 +10,12 @@ I downloaded the STATA dataset due to its smaller size.
 
 ## Explanation of Repo
 This repository has a basic structure with the following folders:
-- scripts: contains R scripts. They are numbered so they can be run in order. The templates for reports are in this folder also.
-- data_output: Contains data used to generate graphs for the general report and the country specific reports. This is not raw data, but data that has been cleaned and merged. The country level reports do not use this data.
-- batch_reports: Contains reports for all countries available in the 2017 data (36). These reports are generated using the template in the scripts folder.
-- er_reports: Contains reports on data aggregated from all 36 countries, including a statistical version (includes code) and a non-statistical version (no code, just graphs and interpretations).
+- SecondApp: contains the .app file and the template for the report. The folder also contain the data used for this report. You need the entire folder to replicate this app. 
+- Report_Sample: Contains a sample of what the html output will look like when saved from the app
 - README: Contains organization of repo, main findings, and session info
 
-To make code work, the downloaded data needs to be in the main folder of the repo, and the scripts need to be run in order.
-
 ## Main Findings
-For more on main findings, please see the shinyApp and reports. 
+For more on main findings, please see the shinyApp: https://medward7.shinyapps.io/SecondApp/
 
 ## Session Info
 ```{r }
